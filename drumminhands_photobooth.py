@@ -7,16 +7,19 @@ import glob
 import time
 import traceback
 from time import sleep
-import RPi.GPIO as GPIO
+#import RPi.GPIO as GPIO
 import picamera # http://picamera.readthedocs.org/en/release-1.4/install2.html
 import atexit
 import sys
 import socket
 import pygame
 from pygame.locals import QUIT, KEYDOWN, K_ESCAPE
-import pytumblr # https://github.com/tumblr/pytumblr
+#import pytumblr # https://github.com/tumblr/pytumblr
 import config # this is the config python file config.py
 from signal import alarm, signal, SIGALRM, SIGKILL
+import requests
+import json
+import base64
 
 ########################
 ### Variables Config ###
@@ -34,8 +37,12 @@ test_server = 'www.google.com'
 # full frame of v1 camera is 2592x1944. Wide screen max is 2592,1555
 # if you run into resource issues, try smaller, like 1920x1152. 
 # or increase memory http://picamera.readthedocs.io/en/release-1.12/fov.html#hardware-limits
-high_res_w = 1296 # width of high res image, if taken
-high_res_h = 972 # height of high res image, if taken
+high_res_w = 1920 # width of high res image, if taken
+high_res_h = 1152 # height of high res image, if taken
+
+# Setup the WordPress client
+wptoken = base64.standard_b64encode(config.wpuser + ':' + config.wppass)
+wpheaders =  {'Authorization': 'Basic ' + wptoken}
 
 #############################
 ### Variables that Change ###
@@ -54,18 +61,18 @@ replay_cycles = 2 # how many times to show each photo on-screen after taking
 real_path = os.path.dirname(os.path.realpath(__file__))
 
 # Setup the tumblr OAuth Client
-client = pytumblr.TumblrRestClient(
-    config.consumer_key,
-    config.consumer_secret,
-    config.oath_token,
-    config.oath_secret,
-)
+#client = pytumblr.TumblrRestClient(
+#    config.consumer_key,
+#    config.consumer_secret,
+#    config.oath_token,
+#    config.oath_secret,
+#)
 
 # GPIO setup
-GPIO.setmode(GPIO.BOARD)
-GPIO.setup(led_pin,GPIO.OUT) # LED
-GPIO.setup(btn_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-GPIO.output(led_pin,False) #for some reason the pin turns on at the beginning of the program. Why?
+#GPIO.setmode(GPIO.BOARD)
+#GPIO.setup(led_pin,GPIO.OUT) # LED
+#GPIO.setup(btn_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+#GPIO.output(led_pin,False) #for some reason the pin turns on at the beginning of the program. Why?
 
 # initialize pygame
 pygame.init()
@@ -73,7 +80,7 @@ pygame.display.set_mode((config.monitor_w, config.monitor_h))
 screen = pygame.display.get_surface()
 pygame.display.set_caption('Photo Booth Pics')
 pygame.mouse.set_visible(False) #hide the mouse cursor
-pygame.display.toggle_fullscreen()
+#pygame.display.toggle_fullscreen()
 
 #################
 ### Functions ###
@@ -83,7 +90,7 @@ pygame.display.toggle_fullscreen()
 def cleanup():
   print('Ended abruptly')
   pygame.quit()
-  GPIO.cleanup()
+  #GPIO.cleanup()
 atexit.register(cleanup)
 
 # A function to handle keyboard/mouse/device input events    
@@ -101,9 +108,9 @@ def clear_pics(channel):
 	#light the lights in series to show completed
 	print "Deleted previous pics"
 	for x in range(0, 3): #blink light
-		GPIO.output(led_pin,True); 
+		#GPIO.output(led_pin,True); 
 		sleep(0.25)
-		GPIO.output(led_pin,False);
+		#GPIO.output(led_pin,False);
 		sleep(0.25)
 
 # check if connected to the internet   
@@ -117,7 +124,7 @@ def is_connected():
     return True
   except:
      pass
-  return False    
+  return True # Stef:was False    
 
 # set variables to properly display the image on screen at right ratio
 def set_demensions(img_w, img_h):
@@ -152,12 +159,12 @@ def set_demensions(img_w, img_h):
         offset_y = offset_x = 0
 
     # uncomment these lines to troubleshoot screen ratios
-#     print str(img_w) + " x " + str(img_h)
-#     print "ratio_h: "+ str(ratio_h)
-#     print "transform_x: "+ str(transform_x)
-#     print "transform_y: "+ str(transform_y)
-#     print "offset_y: "+ str(offset_y)
-#     print "offset_x: "+ str(offset_x)
+        print str(img_w) + " x " + str(img_h)
+        print "ratio_h: "+ str(ratio_h)
+        print "transform_x: "+ str(transform_x)
+        print "transform_y: "+ str(transform_y)
+        print "offset_y: "+ str(offset_y)
+        print "offset_x: "+ str(offset_x)
 
 # display one image on screen
 def show_image(image_path):
@@ -197,7 +204,7 @@ def start_photobooth():
 	################################# Begin Step 1 #################################
 	
 	print "Get Ready"
-	GPIO.output(led_pin,False);
+	#GPIO.output(led_pin,False);
 	show_image(real_path + "/instructions.png")
 	sleep(prep_delay)
 	
@@ -205,7 +212,7 @@ def start_photobooth():
 	clear_screen()
 	
 	camera = picamera.PiCamera()  
-	camera.vflip = False
+	camera.vflip = True # since the camera is upside down
 	camera.hflip = True # flip for preview, showing users a mirror image
 	camera.saturation = -100 # comment out this line if you want color images
 	camera.iso = config.camera_iso
@@ -230,14 +237,15 @@ def start_photobooth():
 		try: # take the photos
 			for i in range(1,total_pics+1):
 				camera.hflip = True # preview a mirror image
-				camera.start_preview(resolution=(config.monitor_w, config.monitor_h)) # start preview at low res but the right ratio
+				#camera.start_preview(resolution=(config.monitor_w, config.monitor_h)) # start preview at low res but the right ratio
+				camera.start_preview() # let the camera start as it wants to
 				time.sleep(2) #warm up camera
-				GPIO.output(led_pin,True) #turn on the LED
+				#GPIO.output(led_pin,True) #turn on the LED
 				filename = config.file_path + now + '-0' + str(i) + '.jpg'
 				camera.hflip = False # flip back when taking photo
 				camera.capture(filename)
 				print(filename)
-				GPIO.output(led_pin,False) #turn off the LED
+				#GPIO.output(led_pin,False) #turn off the LED
 				camera.stop_preview()
 				show_image(real_path + "/pose" + str(i) + ".png")
 				time.sleep(capture_delay) # pause in-between shots
@@ -252,10 +260,10 @@ def start_photobooth():
 		
 		try: #take the photos
 			for i, filename in enumerate(camera.capture_continuous(config.file_path + now + '-' + '{counter:02d}.jpg')):
-				GPIO.output(led_pin,True) #turn on the LED
+				#GPIO.output(led_pin,True) #turn on the LED
 				print(filename)
 				time.sleep(capture_delay) # pause in-between shots
-				GPIO.output(led_pin,False) #turn off the LED
+				#GPIO.output(led_pin,False) #turn off the LED
 				if i == total_pics-1:
 					break
 		finally:
@@ -297,7 +305,12 @@ def start_photobooth():
 			if config.make_gifs: 
 				try:
 					file_to_upload = config.file_path + now + ".gif"
-					client.create_photo(config.tumblr_blog, state="published", tags=[config.tagsForTumblr], data=file_to_upload)
+					gif = {'file': open(file_to_upload,'rb')}
+					
+					#client.create_photo(config.tumblr_blog, state="published", tags=[config.tagsForTumblr], data=file_to_upload)
+		                        wpupload = requests.post(config.wpurl + "/media", headers=wpheaders, files=gif)
+					
+		                        print "Your image is on " + json.loads(wpupload.content)['link']
 					break
 				except ValueError:
 					print "Oops. No internect connection. Upload later."
@@ -313,7 +326,10 @@ def start_photobooth():
 					myJpgs=[0 for i in range(4)]
 					for i in range(4):
 						myJpgs[i]=config.file_path + now + "-0" + str(i+1) + ".jpg"
-					client.create_photo(config.tumblr_blog, state="published", tags=[config.tagsForTumblr], format="markdown", data=myJpgs)
+						jpg = {'file': open(myJpgs,'rb')}
+						wpupload = requests.post(config.wpurl + '/media', headers=wpheaders, files=jpg)
+						print "Your image is on " + json.loads(wpupload.content)['link']
+
 					break
 				except ValueError:
 					print "Oops. No internect connection. Upload later."
@@ -344,7 +360,7 @@ def start_photobooth():
 	
 	time.sleep(restart_delay)
 	show_image(real_path + "/intro.png");
-	GPIO.output(led_pin,True) #turn on the LED
+	#GPIO.output(led_pin,True) #turn on the LED
 
 ####################
 ### Main Program ###
@@ -356,16 +372,16 @@ if config.clear_on_startup:
 
 print "Photo booth app running..." 
 for x in range(0, 5): #blink light to show the app is running
-	GPIO.output(led_pin,True)
+	#GPIO.output(led_pin,True)
 	sleep(0.25)
-	GPIO.output(led_pin,False)
+	#GPIO.output(led_pin,False)
 	sleep(0.25)
 
 show_image(real_path + "/intro.png");
 
 while True:
-	GPIO.output(led_pin,True); #turn on the light showing users they can push the button
+	#GPIO.output(led_pin,True); #turn on the light showing users they can push the button
 	input(pygame.event.get()) # press escape to exit pygame. Then press ctrl-c to exit python.
-	GPIO.wait_for_edge(btn_pin, GPIO.FALLING)
+	#GPIO.wait_for_edge(btn_pin, GPIO.FALLING)
 	time.sleep(config.debounce) #debounce
 	start_photobooth()

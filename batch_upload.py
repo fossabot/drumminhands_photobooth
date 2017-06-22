@@ -10,19 +10,26 @@ import glob
 import stat
 import sys
 import time
-import pytumblr # https://github.com/tumblr/pytumblr
+#import pytumblr # https://github.com/tumblr/pytumblr
 import config # this is the config file config.py
+import base64 
+import requests
 
 # global variables
 delay = 1 # delay between uploads. Don't abuse the Tumblr server. 
 
 # Setup the tumblr OAuth Client
-client = pytumblr.TumblrRestClient(
-    config.consumer_key,
-    config.consumer_secret,
-    config.oath_token,
-    config.oath_secret,
-)
+#client = pytumblr.TumblrRestClient(
+#    config.consumer_key,
+#    config.consumer_secret,
+#    config.oath_token,
+#    config.oath_secret,
+#)
+
+# Setup the WordPress client
+wptoken = base64.standard_b64encode(config.wpuser + ':' + config.wppass) 
+wpheaders =  {'Authorization': 'Basic ' + wptoken}
+ 
 
 def main():
 	if config.make_gifs:
@@ -51,7 +58,9 @@ def uploadOne(pic):
 		try:
 			file_to_upload = pic
 			print "Uploading " + file_to_upload
-			client.create_photo(config.tumblr_blog, state="published", tags=[config.tagsForTumblr], data=file_to_upload)
+			#client.create_photo(config.tumblr_blog, state="published", tags=[config.tagsForTumblr], data=file_to_upload)
+			wpupload = requests.post(url + '/media', headers=headers, files=file_to_upload)
+			print "Your image is on " + wpupload.headers['link']
 			time.sleep(delay) # wait a bit
 # 			cmd = "mv " + file_to_upload + " " + config.file_path + "/batch_uploaded"
 # 			os.system(cmd) # once uploaded, move to sub directory
@@ -68,8 +77,10 @@ def uploadMultiple(group_name):
 				myJpgs[i]=config.file_path + group_name + "-0" + str(i+1) + ".jpg"
 			
 			# upload files into one post
-			client.create_photo(config.tumblr_blog, state="published", tags=[config.tagsForTumblr], format="markdown", data=myJpgs)
-			
+			# client.create_photo(config.tumblr_blog, state="published", tags=[config.tagsForTumblr], format="markdown", data=myJpgs)
+			wpupload = requests.post(url + '/media', headers=headers, files=myJpgs)
+                        print "Your image is on " + wpupload.headers['link']
+	
 			# wait a bit
 			time.sleep(delay)
 				
