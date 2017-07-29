@@ -7,7 +7,7 @@ import glob
 import time
 import traceback
 from time import sleep
-#import RPi.GPIO as GPIO
+import RPi.GPIO as GPIO
 import picamera # http://picamera.readthedocs.org/en/release-1.4/install2.html
 import atexit
 import sys
@@ -69,10 +69,10 @@ real_path = os.path.dirname(os.path.realpath(__file__))
 #)
 
 # GPIO setup
-#GPIO.setmode(GPIO.BOARD)
-#GPIO.setup(led_pin,GPIO.OUT) # LED
-#GPIO.setup(btn_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-#GPIO.output(led_pin,False) #for some reason the pin turns on at the beginning of the program. Why?
+GPIO.setmode(GPIO.BOARD)
+GPIO.setup(led_pin,GPIO.OUT) # LED
+GPIO.setup(btn_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.output(led_pin,False) #for some reason the pin turns on at the beginning of the program. Why?
 
 # initialize pygame
 pygame.init()
@@ -80,7 +80,7 @@ pygame.display.set_mode((config.monitor_w, config.monitor_h))
 screen = pygame.display.get_surface()
 pygame.display.set_caption('Photo Booth Pics')
 pygame.mouse.set_visible(False) #hide the mouse cursor
-#pygame.display.toggle_fullscreen()
+pygame.display.toggle_fullscreen()
 
 #################
 ### Functions ###
@@ -90,7 +90,7 @@ pygame.mouse.set_visible(False) #hide the mouse cursor
 def cleanup():
   print('Ended abruptly')
   pygame.quit()
-  #GPIO.cleanup()
+  GPIO.cleanup()
 atexit.register(cleanup)
 
 # A function to handle keyboard/mouse/device input events    
@@ -108,9 +108,9 @@ def clear_pics(channel):
 	#light the lights in series to show completed
 	print "Deleted previous pics"
 	for x in range(0, 3): #blink light
-		#GPIO.output(led_pin,True); 
+		GPIO.output(led_pin,True); 
 		sleep(0.25)
-		#GPIO.output(led_pin,False);
+		GPIO.output(led_pin,False);
 		sleep(0.25)
 
 # check if connected to the internet   
@@ -204,7 +204,7 @@ def start_photobooth():
 	################################# Begin Step 1 #################################
 	
 	print "Get Ready"
-	#GPIO.output(led_pin,False);
+	GPIO.output(led_pin,False);
 	show_image(real_path + "/instructions.png")
 	sleep(prep_delay)
 	
@@ -216,6 +216,7 @@ def start_photobooth():
 	camera.hflip = True # flip for preview, showing users a mirror image
 	camera.saturation = -100 # comment out this line if you want color images
 	camera.iso = config.camera_iso
+	camera.rotation = 270
 	
 	pixel_width = 0 # local variable declaration
 	pixel_height = 0 # local variable declaration
@@ -240,12 +241,12 @@ def start_photobooth():
 				#camera.start_preview(resolution=(config.monitor_w, config.monitor_h)) # start preview at low res but the right ratio
 				camera.start_preview() # let the camera start as it wants to
 				time.sleep(2) #warm up camera
-				#GPIO.output(led_pin,True) #turn on the LED
+				GPIO.output(led_pin,True) #turn on the LED
 				filename = config.file_path + now + '-0' + str(i) + '.jpg'
 				camera.hflip = False # flip back when taking photo
 				camera.capture(filename)
 				print(filename)
-				#GPIO.output(led_pin,False) #turn off the LED
+				GPIO.output(led_pin,False) #turn off the LED
 				camera.stop_preview()
 				show_image(real_path + "/pose" + str(i) + ".png")
 				time.sleep(capture_delay) # pause in-between shots
@@ -260,10 +261,10 @@ def start_photobooth():
 		
 		try: #take the photos
 			for i, filename in enumerate(camera.capture_continuous(config.file_path + now + '-' + '{counter:02d}.jpg')):
-				#GPIO.output(led_pin,True) #turn on the LED
+				GPIO.output(led_pin,True) #turn on the LED
 				print(filename)
 				time.sleep(capture_delay) # pause in-between shots
-				#GPIO.output(led_pin,False) #turn off the LED
+				GPIO.output(led_pin,False) #turn off the LED
 				if i == total_pics-1:
 					break
 		finally:
@@ -360,7 +361,7 @@ def start_photobooth():
 	
 	time.sleep(restart_delay)
 	show_image(real_path + "/intro.png");
-	#GPIO.output(led_pin,True) #turn on the LED
+	GPIO.output(led_pin,True) #turn on the LED
 
 ####################
 ### Main Program ###
@@ -372,16 +373,16 @@ if config.clear_on_startup:
 
 print "Photo booth app running..." 
 for x in range(0, 5): #blink light to show the app is running
-	#GPIO.output(led_pin,True)
+	GPIO.output(led_pin,True)
 	sleep(0.25)
-	#GPIO.output(led_pin,False)
+	GPIO.output(led_pin,False)
 	sleep(0.25)
 
 show_image(real_path + "/intro.png");
 
 while True:
-	#GPIO.output(led_pin,True); #turn on the light showing users they can push the button
+	GPIO.output(led_pin,True); #turn on the light showing users they can push the button
 	input(pygame.event.get()) # press escape to exit pygame. Then press ctrl-c to exit python.
-	#GPIO.wait_for_edge(btn_pin, GPIO.FALLING)
+	GPIO.wait_for_edge(btn_pin, GPIO.FALLING)
 	time.sleep(config.debounce) #debounce
 	start_photobooth()
