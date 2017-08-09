@@ -66,7 +66,7 @@ real_path = os.path.dirname(os.path.realpath(__file__))
 #    config.consumer_secret,
 #    config.oath_token,
 #    config.oath_secret,
-#)
+##)
 
 # GPIO setup
 GPIO.setmode(GPIO.BOARD)
@@ -80,7 +80,8 @@ pygame.display.set_mode((config.monitor_w, config.monitor_h))
 screen = pygame.display.get_surface()
 pygame.display.set_caption('Photo Booth Pics')
 pygame.mouse.set_visible(False) #hide the mouse cursor
-pygame.display.toggle_fullscreen()
+
+#pygame.display.toggle_fullscreen()
 
 #################
 ### Functions ###
@@ -124,7 +125,7 @@ def is_connected():
     return True
   except:
      pass
-  return True # Stef:was False    
+  return False 
 
 # set variables to properly display the image on screen at right ratio
 def set_demensions(img_w, img_h):
@@ -195,7 +196,27 @@ def display_pics(jpg_group):
 		for i in range(1, total_pics+1): #show each pic
 			show_image(config.file_path + jpg_group + "-0" + str(i) + ".jpg")
 			time.sleep(replay_delay) # pause 
-				
+
+
+# On screen text message
+def displayStatus(status, size):
+        screen.fill((0,0,0))
+
+        font = pygame.font.SysFont("roboto",size, bold=True)
+        text = font.render(status,True,(193,150,74))
+
+        # Display in the center of the screen
+        textrect = text.get_rect()
+        textrect.centerx = screen.get_rect().centerx
+        textrect.centery = screen.get_rect().centery
+
+        screen.blit(text,textrect)
+
+        pygame.display.flip() # update the display
+
+
+
+
 # define the photo taking function for when the big button is pressed 
 def start_photobooth(): 
 
@@ -214,7 +235,7 @@ def start_photobooth():
 	camera = picamera.PiCamera()  
 	camera.vflip = True # since the camera is upside down
 	camera.hflip = True # flip for preview, showing users a mirror image
-	camera.saturation = -100 # comment out this line if you want color images
+	#camera.saturation = -100 # comment out this line if you want color images
 	camera.iso = config.camera_iso
 	camera.rotation = 270
 	
@@ -237,18 +258,22 @@ def start_photobooth():
 	if config.capture_count_pics:
 		try: # take the photos
 			for i in range(1,total_pics+1):
+				#STEF use superimpose instead of static images
+				displayStatus(str(i), 200)
 				camera.hflip = True # preview a mirror image
 				#camera.start_preview(resolution=(config.monitor_w, config.monitor_h)) # start preview at low res but the right ratio
 				camera.start_preview() # let the camera start as it wants to
 				time.sleep(2) #warm up camera
 				GPIO.output(led_pin,True) #turn on the LED
 				filename = config.file_path + now + '-0' + str(i) + '.jpg'
-				camera.hflip = False # flip back when taking photo
+				#camera.hflip = True # Stef was False # flip back when taking photo
 				camera.capture(filename)
 				print(filename)
 				GPIO.output(led_pin,False) #turn off the LED
+				#STEF use superimpose instead of static images
 				camera.stop_preview()
-				show_image(real_path + "/pose" + str(i) + ".png")
+				#show_image(real_path + "/pose" + str(i) + ".png")
+				# use pygame superimpose to show countdown to next pose
 				time.sleep(capture_delay) # pause in-between shots
 				clear_screen()
 				if i == total_pics+1:
@@ -275,7 +300,6 @@ def start_photobooth():
 	
 	input(pygame.event.get()) # press escape to exit pygame. Then press ctrl-c to exit python.
 	
-	print "Creating an animated gif" 
 	
 	if config.post_online:
 		show_image(real_path + "/uploading.png")
@@ -283,6 +307,7 @@ def start_photobooth():
 		show_image(real_path + "/processing.png")
 	
 	if config.make_gifs: # make the gifs
+		print "Creating an animated gif" 
 		if config.hi_res_pics:
 			# first make a small version of each image. Tumblr's max animated gif's are 500 pixels wide.
 			for x in range(1, total_pics+1): #batch process all the images
@@ -310,7 +335,7 @@ def start_photobooth():
 					
 					#client.create_photo(config.tumblr_blog, state="published", tags=[config.tagsForTumblr], data=file_to_upload)
 		                        wpupload = requests.post(config.wpurl + "/media", headers=wpheaders, files=gif)
-					
+					displayStatus("Your image is on " + json.loads(wpupload.content)['link'], 14)
 		                        print "Your image is on " + json.loads(wpupload.content)['link']
 					break
 				except ValueError:
@@ -327,8 +352,9 @@ def start_photobooth():
 					myJpgs=[0 for i in range(4)]
 					for i in range(4):
 						myJpgs[i]=config.file_path + now + "-0" + str(i+1) + ".jpg"
-						jpg = {'file': open(myJpgs,'rb')}
+						jpg = {'file': open(myJpgs[i],'rb')}
 						wpupload = requests.post(config.wpurl + '/media', headers=wpheaders, files=jpg)
+                                                displayStatus("Your image is on " + json.loads(wpupload.content)['link'], 14)
 						print "Your image is on " + json.loads(wpupload.content)['link']
 
 					break

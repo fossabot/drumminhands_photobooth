@@ -10,9 +10,9 @@ tagsForTumblr = "MyTagsHere" # change to tags you want, separated with commas
 
 # WordPress Setup
 # Replace the values with your information
-wpuser = 'dream_itv2q6'
-wppass = 'G4kN hBNh r35J luXk aXyd n6Lm'
-wpurl = 'http://dream.senzabidet.com/wp-json/wp/v2'
+wpuser = 'YOUR_USERNAME'
+wppass = 'YOUR_REST_PASSWORD'
+wpurl = 'THE_URL_OF_YOUR_REST_API_ENDPOINT' #usually something like http://example.com/wp-json/wp/v2'
 
 #Config settings to change behavior of photo booth
 monitor_w = 800 # width of the display monitor
