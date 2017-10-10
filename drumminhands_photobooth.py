@@ -215,6 +215,39 @@ def displayStatus(status, size):
         pygame.display.flip() # update the display
 
 
+def wp_make_post(gif, wp_title, wp_content):
+        wpupload = requests.post(config.wpurl + "/media", headers=wpheaders, files=gif)
+	print "Your image is on " + json.loads(wpupload.content)['link']
+	# get the post ID from WP
+	wpimg = json.loads(wpupload.content)['id']
+	print wpimg
+	# prepare the post content in json
+	wppost = {'categories':'3', \
+                  'title':wp_title, \
+                  'content':wp_content, \
+                  'format':'image', \
+                  'featured_media':wpimg, \
+                  'author':'1', \
+                  'status':'publish'}
+	print wppost
+	# post the json to WP
+	wpdopost = requests.post(config.wpurl + "/posts", headers=wpheaders, json=wppost)
+	displayStatus("Your image is on " + json.loads(wpdopost.content)['link'], 14)
+
+def make_gif(now):
+	#get the current date and time for the start of the filename
+	if config.hi_res_pics:
+		# first make a small version of each image. Tumblr's max animated gif's are 500 pixels wide.
+		for x in range(1, total_pics+1): #batch process all the images
+			graphicsmagick = "gm convert -size 500x500 " + config.file_path + now + "-0" + str(x) + ".jpg -thumbnail 500x500 " + config.file_path + now + "-0" + str(x) + "-sm.jpg"
+			os.system(graphicsmagick) #do the graphicsmagick action
+
+		graphicsmagick = "gm convert -delay " + str(gif_delay) + " " + config.file_path + now + "*-sm.jpg " + config.file_path + now + ".gif" 
+		os.system(graphicsmagick) #make the .gif
+	else:
+		# make an animated gif with the low resolution images
+		graphicsmagick = "gm convert -delay " + str(gif_delay) + " " + config.file_path + now + "*.jpg " + config.file_path + now + ".gif" 
+		os.system(graphicsmagick) #make the .gif
 
 
 # define the photo taking function for when the big button is pressed 
@@ -271,7 +304,7 @@ def start_photobooth():
 				print(filename)
 				GPIO.output(led_pin,False) #turn off the LED
 				#STEF use superimpose instead of static images
-				camera.stop_preview()
+				#camera.stop_preview()
 				#show_image(real_path + "/pose" + str(i) + ".png")
 				# use pygame superimpose to show countdown to next pose
 				time.sleep(capture_delay) # pause in-between shots
@@ -308,44 +341,33 @@ def start_photobooth():
 	
 	if config.make_gifs: # make the gifs
 		print "Creating an animated gif" 
-		if config.hi_res_pics:
-			# first make a small version of each image. Tumblr's max animated gif's are 500 pixels wide.
-			for x in range(1, total_pics+1): #batch process all the images
-				graphicsmagick = "gm convert -size 500x500 " + config.file_path + now + "-0" + str(x) + ".jpg -thumbnail 500x500 " + config.file_path + now + "-0" + str(x) + "-sm.jpg"
-				os.system(graphicsmagick) #do the graphicsmagick action
-
-			graphicsmagick = "gm convert -delay " + str(gif_delay) + " " + config.file_path + now + "*-sm.jpg " + config.file_path + now + ".gif" 
-			os.system(graphicsmagick) #make the .gif
-		else:
-			# make an animated gif with the low resolution images
-			graphicsmagick = "gm convert -delay " + str(gif_delay) + " " + config.file_path + now + "*.jpg " + config.file_path + now + ".gif" 
-			os.system(graphicsmagick) #make the .gif
-
+		make_gif(now)
 	if config.post_online: # turn off posting pics online in config.py
+                #import pdb; pdb.set_trace()
+
 		connected = is_connected() #check to see if you have an internet connection
 
 		if (connected==False):
-			print "bad internet connection"
-                    
+			print "Oops. No internect connection. Upload later."
+			#make a text file as a note to upload the .gif later
+			try:
+				file = open(config.file_path + now + "-FILENOTUPLOADED.txt",'w')   # Trying to create a new file or open one
+				file.close()
+      			except:
+				print('Something went wrong. Could not write file.')
+				sys.exit(0) # quit Python
+
 		while connected:
 			if config.make_gifs: 
 				try:
 					file_to_upload = config.file_path + now + ".gif"
 					gif = {'file': open(file_to_upload,'rb')}
-					
-					#client.create_photo(config.tumblr_blog, state="published", tags=[config.tagsForTumblr], data=file_to_upload)
-		                        wpupload = requests.post(config.wpurl + "/media", headers=wpheaders, files=gif)
-					displayStatus("Your image is on " + json.loads(wpupload.content)['link'], 14)
-		                        print "Your image is on " + json.loads(wpupload.content)['link']
-					break
-				except ValueError:
-					print "Oops. No internect connection. Upload later."
-					try: #make a text file as a note to upload the .gif later
-						file = open(config.file_path + now + "-FILENOTUPLOADED.txt",'w')   # Trying to create a new file or open one
-						file.close()
-					except:
-						print('Something went wrong. Could not write file.')
-						sys.exit(0) # quit Python
+					wp_make_post(gif, config.wp_title, config.wp_content)
+		        		break
+				except:
+					print('Something went wrong.')
+					sys.exit(0) # quit Python
+
 			else: # upload jpgs instead
 				try:
 					# create an array and populate with file paths to our jpgs
@@ -354,19 +376,15 @@ def start_photobooth():
 						myJpgs[i]=config.file_path + now + "-0" + str(i+1) + ".jpg"
 						jpg = {'file': open(myJpgs[i],'rb')}
 						wpupload = requests.post(config.wpurl + '/media', headers=wpheaders, files=jpg)
-                                                displayStatus("Your image is on " + json.loads(wpupload.content)['link'], 14)
+						displayStatus("Your image is on " + json.loads(wpupload.content)['link'], 14)
 						print "Your image is on " + json.loads(wpupload.content)['link']
 
 					break
-				except ValueError:
-					print "Oops. No internect connection. Upload later."
-					try: #make a text file as a note to upload the .gif later
-						file = open(config.file_path + now + "-FILENOTUPLOADED.txt",'w')   # Trying to create a new file or open one
-						file.close()
-					except:
-						print('Something went wrong. Could not write file.')
-						sys.exit(0) # quit Python				
-	
+                                except:
+                                        print('Something went wrong. Could not write file.')
+                                        sys.exit(0) # quit Python
+
+
 	########################### Begin Step 4 #################################
 	
 	input(pygame.event.get()) # press escape to exit pygame. Then press ctrl-c to exit python.
