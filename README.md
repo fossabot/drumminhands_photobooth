@@ -1,3 +1,5 @@
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fsmaffulli%2Fdrumminhands_photobooth.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fsmaffulli%2Fdrumminhands_photobooth?ref=badge_shield)
+
 drumminhands_photobooth
 =======================
 
@@ -25,3 +27,6 @@ Icons from the Noun Project
 -Hamster wheel by Dream Icons
 -Tap by Prerak Patel
 -Yoga poses by Claire Jones
+
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fsmaffulli%2Fdrumminhands_photobooth.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fsmaffulli%2Fdrumminhands_photobooth?ref=badge_large)
